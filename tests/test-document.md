@@ -82,6 +82,18 @@ The [transport configuration](/tests/transports/rabbitmq/readme.md#configuration
 
 The [line anchor](../src/chek.ts#L10) addresses a line, not a heading, and is kept.
 
+## Anchors in Existing Files
+
+The [placeholder heading](./placeholder.md#missing-section) does not exist in that file.
+
+The [README quickstart](../README.md#quickstrat) has a typo in the anchor.
+
+The [same-file heading](#fuzzy-matches-typos-in-filename) exists in this file.
+
+The [same-file typo](#fuzzy-matches-typo-in-filename) is close to an existing heading.
+
+The [line anchor on a markdown file](../README.md#L5) is not verified.
+
 ## Links Inside Code Blocks (should be skipped when skip-code-blocks is enabled)
 
 ```yaml

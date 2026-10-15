@@ -435,6 +435,68 @@ function findReplacement(
   return { file: chosen.url.file, anchor: suggestedAnchor, ambiguous: [] };
 }
 
+let repoIndexByPath: Map<string, IndexedFile> | null = null;
+
+/** Look up one file in the index by absolute path. */
+function getIndexedFile(abs: string, repoRoot: string): IndexedFile | undefined {
+  if (!repoIndexByPath) {
+    repoIndexByPath = new Map(getRepoIndex(repoRoot).map(f => [path.resolve(f.abs), f]));
+  }
+  return repoIndexByPath.get(path.resolve(abs));
+}
+
+interface AnchorCheck {
+  ok: boolean;
+  closest?: string; // a similar heading slug, when the anchor is missing
+}
+
+/**
+ * Verify that a markdown file contains the heading a link anchor points to.
+ * Files that are not markdown and line anchors (#L10) are not checked. When
+ * the heading is missing, the most similar heading (if any passes
+ * FUZZY_THRESHOLD) is returned so the report can suggest it.
+ */
+function checkAnchor(abs: string, anchor: string, repoRoot: string): AnchorCheck {
+  const file = getIndexedFile(abs, repoRoot);
+  if (!file || !MARKDOWN_EXTENSIONS.has(file.ext)) return { ok: true };
+
+  const decoded = safeDecode(anchor);
+  if (LINE_ANCHOR.test(decoded)) return { ok: true };
+  const wanted = decoded.toLowerCase().replace(/^user-content-/, '');
+  if (file.anchors.includes(wanted)) return { ok: true };
+
+  let closest: string | undefined;
+  let bestScore = FUZZY_THRESHOLD;
+  for (const candidate of file.anchors) {
+    const score = similarity(wanted, candidate);
+    if (score >= bestScore) {
+      bestScore = score;
+      closest = candidate;
+    }
+  }
+  return { ok: false, closest };
+}
+
+/**
+ * Result for a link whose file exists but whose heading does not. Suggests
+ * the closest heading when there is one.
+ */
+function missingAnchorResult(link: LinkInfo, urlWithoutAnchor: string, anchor: string, target: string, check: AnchorCheck): CheckResult {
+  const correctedUrl = check.closest ? `${urlWithoutAnchor}#${check.closest}` : undefined;
+  const suggestion = correctedUrl
+    ? link.lineContent.trimEnd().replace(link.url, correctedUrl) + '  <!-- closest match - please verify -->'
+    : undefined;
+  return {
+    link,
+    ok: false,
+    error: `Anchor #${anchor} not found in ${target}`,
+    anchorMissing: true,
+    suggestion,
+    correctedUrl,
+    isFuzzyMatch: !!correctedUrl,
+  };
+}
+
 /**
  * Error text for a missing file. Lists the tied candidates when the search
  * found several files that fit equally well.
@@ -466,9 +528,12 @@ function toRootRelative(absPath: string, repoRoot: string): string {
 async function checkInternal(link: LinkInfo, config: Config): Promise<CheckResult> {
   const url = link.url;
 
-  // Same-file anchors (#section) are not verified.
+  // Same-file anchors (#section): the heading must exist in this file.
   if (url.startsWith('#')) {
-    return { link, ok: true };
+    if (!config.checkAnchors) return { link, ok: true };
+    const sourceAbs = path.join(config.repoRoot, link.filePath);
+    const check = checkAnchor(sourceAbs, url.slice(1), config.repoRoot);
+    return check.ok ? { link, ok: true } : missingAnchorResult(link, '', url.slice(1), 'this file', check);
   }
 
   // Strip anchor fragment
@@ -500,6 +565,15 @@ async function checkInternal(link: LinkInfo, config: Config): Promise<CheckResul
   const exists = fs.existsSync(resolvedPath);
 
   if (exists) {
+    // The file exists. When the link has an anchor, the heading must exist too.
+    if (hashIdx >= 0 && config.checkAnchors) {
+      const anchor = url.slice(hashIdx + 1);
+      const check = checkAnchor(resolvedPath, anchor, config.repoRoot);
+      if (!check.ok) {
+        return missingAnchorResult(link, urlWithoutAnchor, anchor, toRootRelative(resolvedPath, config.repoRoot), check);
+      }
+    }
+
     // Link is valid. If it uses a relative path (not root-relative), suggest conversion.
     // However, skip the suggestion for same-folder links (e.g. "readme.md" or "./readme.md")
     // because they are simple and unlikely to break.
@@ -664,6 +738,15 @@ function suggestLocalPath(link: LinkInfo, parts: string[], config: Config): Chec
       isFuzzyMatch: !!replacement.file,
       candidates: replacement.ambiguous.map(abs => toRootRelative(abs, config.repoRoot)),
     };
+  }
+
+  if (hashIndex !== -1 && config.checkAnchors) {
+    const anchor = link.url.slice(hashIndex + 1);
+    const check = checkAnchor(resolvedPath, anchor, config.repoRoot);
+    if (!check.ok) {
+      const localWithoutAnchor = localUrl.slice(0, localUrl.indexOf('#'));
+      return missingAnchorResult(link, localWithoutAnchor, anchor, `/${filePath}`, check);
+    }
   }
 
   const suggestion = link.lineContent.trimEnd().replace(link.url, localUrl);

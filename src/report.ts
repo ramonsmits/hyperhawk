@@ -71,7 +71,18 @@ function formatBrokenComment(result: CheckResult): string {
   const { link, correctedUrl, statusCode } = result;
   const lines: string[] = [];
 
-  if (link.type === 'internal') {
+  if (result.anchorMissing) {
+    lines.push(
+      link.url.startsWith('#')
+        ? `This file has no heading for the anchor \`${link.url}\`.`
+        : `The file exists, but it has no heading for the anchor in \`${link.url}\`.`
+    );
+    lines.push(
+      correctedUrl
+        ? `\`${correctedUrl}\` is the closest heading — please verify that this is the intended target.`
+        : 'Update the anchor or remove it from the link.'
+    );
+  } else if (link.type === 'internal') {
     if (correctedUrl) {
       lines.push(
         `The link points to \`${link.url}\`, but this file does not exist.`,
@@ -456,5 +467,7 @@ export async function report(results: CheckResult[], octokit: Octokit, config: C
   }
 
   core.info(`Link check complete: ${results.length} checked, ${broken.length} broken`);
-  return broken.length;
+  // A missing heading in an existing file is reported, but it does not fail
+  // the workflow in strict mode.
+  return broken.filter(r => !r.anchorMissing).length;
 }

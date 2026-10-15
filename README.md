@@ -78,6 +78,7 @@ Need to check links into **private repositories** in the same org? See [Cross-re
 | `check-external` | no | `true` | Whether to check external HTTP/HTTPS links. |
 | `check-same-org` | no | `true` | Whether to verify same-org GitHub links via the API. |
 | `check-relative` | no | `true` | Whether to check relative file links (`../x.md`, `./x.md`, `folder/x.md`). Root-relative (`/x.md`) links are always checked. |
+| `check-anchors` | no | `true` | Verify that the heading in a link anchor exists (`guide.md#section`, `#section`). Line anchors (`#L10`) are not verified. A missing heading never fails the workflow. |
 | `relative-suggestion-depth` | no | `0` | Skip root-relative conversion suggestions for relative links within this many directory levels (`0` = only same-folder; `1` also exempts `../x.md` and `folder/x.md`). Max `5`; disable `check-relative` for deeper. |
 | `ignore-patterns` | no | _(empty)_ | Comma-separated regex patterns. Matching URLs are skipped. |
 | `timeout` | no | `10000` | Timeout in milliseconds for each external link request. |

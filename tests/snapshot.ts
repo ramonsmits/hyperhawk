@@ -195,6 +195,7 @@ async function runIssueTemplateTest(repoRoot: string, testFile: string): Promise
     checkExternal: false,
     checkSameOrg: true,
     checkRelative: true,
+    checkAnchors: true,
     relativeSuggestionDepth: 0,
     ignorePatterns: [],
     timeout: 5000,
@@ -245,6 +246,7 @@ async function runCodeBlockTest(repoRoot: string, testFile: string): Promise<voi
     checkExternal: false,
     checkSameOrg: false,
     checkRelative: true,
+    checkAnchors: true,
     relativeSuggestionDepth: 0,
     ignorePatterns: [],
     timeout: 5000,
@@ -255,8 +257,8 @@ async function runCodeBlockTest(repoRoot: string, testFile: string): Promise<voi
   };
 
   const allLinks = extractLinks(testFile, config);
-  // Only look at links from the code block test section (lines 86+)
-  const codeBlockLinks = allLinks.filter(l => l.line >= 86);
+  // Only look at links from the code block test section (lines 96+)
+  const codeBlockLinks = allLinks.filter(l => l.line >= 96);
 
   const lines = codeBlockLinks
     .map(l => {
@@ -285,6 +287,7 @@ async function runRelativeControlsTest(repoRoot: string, testFile: string): Prom
     checkExternal: false,
     checkSameOrg: false,
     checkRelative: true,
+    checkAnchors: true,
     relativeSuggestionDepth: 0,
     ignorePatterns: [],
     timeout: 5000,
@@ -309,6 +312,8 @@ async function runRelativeControlsTest(repoRoot: string, testFile: string): Prom
 
   // Relative checking disabled: every relative link is skipped (ok).
   await summarize('reloff', { ...base, checkRelative: false });
+  // Anchor checking disabled: links to existing files with a missing heading are ok.
+  await summarize('anchorsoff', { ...base, checkAnchors: false });
   // Depth 1: same-folder and one-level links are exempt from suggestions.
   await summarize('reldepth1', { ...base, relativeSuggestionDepth: 1 });
 }
@@ -333,6 +338,7 @@ async function runFixtureFilesTest(repoRoot: string): Promise<void> {
     checkExternal: false,
     checkSameOrg: false,
     checkRelative: true,
+    checkAnchors: true,
     relativeSuggestionDepth: 0,
     ignorePatterns: [],
     timeout: 5000,
@@ -403,6 +409,7 @@ async function runTests(repoRoot: string, testFile: string, baseUrl: string): Pr
     checkExternal: true,
     checkSameOrg: true,
     checkRelative: true,
+    checkAnchors: true,
     relativeSuggestionDepth: 0,
     ignorePatterns: [],
     timeout: 5000,

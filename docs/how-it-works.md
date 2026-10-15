@@ -74,6 +74,10 @@ Among candidates whose folders fit equally well, the one nearest to the source f
 
 A suggestion is only made when the score is high enough, or when the file name exists exactly once in the repository (a moved file). Links into another repository therefore get no one-click fix. Every suggestion is a closest match, not a certainty, and the comment says so.
 
+### Anchor checking
+
+A link to a markdown file that exists, but with an anchor that has no matching heading (`guide.md#missing-section`, or `#missing-section` in the same file), is reported as a broken link. When the file has a similar heading, HyperHawk suggests it as the closest match. This kind of broken link does not fail the workflow in [strict mode](/docs/configuration.md#strict-mode). The check can be turned off with [`check-anchors: false`](/docs/configuration.md#anchor-checking).
+
 ### Root-relative path suggestions
 
 Working links that use relative paths (`../../docs/guide.md`) get a suggestion to convert them to root-relative paths (`/docs/guide.md`). Root-relative links never break when the file containing them is moved. Same-folder links (e.g. `readme.md` or `./readme.md`) are left as-is since they are simple and unlikely to break.
